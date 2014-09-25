@@ -70,6 +70,7 @@ struct SCIP_Stat
    SCIP_Longint          ndeactivatednodes;  /**< number of times, a node got deactivated in current run */
    SCIP_Longint          nbacktracks;        /**< number of times, the new node was chosen from the leaves queue */
    SCIP_Longint          ndelayedcutoffs;    /**< number of times, the selected node was from a cut off subtree */
+   SCIP_Longint          nprunes;            /**< number of times, the selected node was pruned */
    SCIP_Longint          nreprops;           /**< number of times, a solved node is repropagated again */
    SCIP_Longint          nrepropboundchgs;   /**< number of bound changes generated in repropagating nodes */
    SCIP_Longint          nrepropcutoffs;     /**< number of times, a repropagated node was cut off */

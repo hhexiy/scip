@@ -827,7 +827,7 @@ SCIP_RETCODE SCIPapplyProximity(
       {
          /* create the subproblem step by step, adding plugins and variables first, and finally creating
           * linear constraints based on current LP rows */
-         SCIP_CALL( SCIPcopyPlugins(scip, subscip, FALSE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE,
+         SCIP_CALL( SCIPcopyPlugins(scip, subscip, FALSE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, 
                TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, &valid) );
          SCIP_CALL( SCIPcreateProbBasic(subscip, "proximitysub") );
 

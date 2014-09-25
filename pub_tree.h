@@ -162,6 +162,18 @@ SCIP_Bool SCIPnodeIsActive(
    SCIP_NODE*            node                /**< node */
    );
 
+/** returns whether node is checked for optimality */
+EXTERN
+SCIP_Bool SCIPnodeIsOptchecked(
+   SCIP_NODE*            node                /**< node */
+   );
+
+/** returns whether node is optimal */
+EXTERN
+SCIP_Bool SCIPnodeIsOptimal(
+   SCIP_NODE*            node                /**< node */
+   );
+
 /** returns whether the node is marked to be propagated again */
 EXTERN
 SCIP_Bool SCIPnodeIsPropagatedAgain(
@@ -183,6 +195,8 @@ SCIP_Bool SCIPnodeIsPropagatedAgain(
 #define SCIPnodeGetDomchg(node)         ((node)->domchg)
 #define SCIPnodeGetParent(node)         ((node)->parent)
 #define SCIPnodeIsActive(node)          ((node)->active)
+#define SCIPnodeIsOptimal(node)         ((node)->optimal)
+#define SCIPnodeIsOptchecked(node)      ((node)->optimal)
 #define SCIPnodeIsPropagatedAgain(node) ((node)->reprop)
 
 #endif

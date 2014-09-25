@@ -43,6 +43,7 @@
 #include "scip/dialog.h"
 #include "scip/heur.h"
 #include "scip/nodesel.h"
+#include "scip/nodepru.h"
 #include "scip/presol.h"
 #include "scip/pricer.h"
 #include "scip/reader.h"
@@ -480,6 +481,7 @@ SCIP_RETCODE SCIPsetCopyPlugins(
    SCIP_Bool             copyheuristics,     /**< should the heuristics be copied */
    SCIP_Bool             copyeventhdlrs,     /**< should the event handlers be copied */
    SCIP_Bool             copynodeselectors,  /**< should the node selectors be copied */
+   SCIP_Bool             copynodepruners,  /**< should the node pruners be copied */
    SCIP_Bool             copybranchrules,    /**< should the branchrules be copied */
    SCIP_Bool             copydisplays,       /**< should the display columns be copied */
    SCIP_Bool             copydialogs,        /**< should the dialogs be copied */
@@ -624,6 +626,15 @@ SCIP_RETCODE SCIPsetCopyPlugins(
       }
    }
 
+   /* copy all node pruner plugins */
+   if( copynodepruners && sourceset->nodeprus != NULL )
+   {
+      for( p = sourceset->nnodeprus - 1; p >= 0; --p )
+      {
+         SCIP_CALL( SCIPnodepruCopyInclude(sourceset->nodeprus[p], targetset) );
+      }
+   }
+
    /* copy all branchrule plugins */
    if( copybranchrules && sourceset->branchrules != NULL )
    {
@@ -758,6 +769,10 @@ SCIP_RETCODE SCIPsetCreate(
    (*set)->nnodesels = 0;
    (*set)->nodeselssize = 0;
    (*set)->nodesel = NULL;
+   (*set)->nodeprus = NULL;
+   (*set)->nnodeprus = 0;
+   (*set)->nodeprussize = 0;
+   (*set)->nodepru = NULL;
    (*set)->branchrules = NULL;
    (*set)->nbranchrules = 0;
    (*set)->branchrulessize = 0;
@@ -1841,6 +1856,13 @@ SCIP_RETCODE SCIPsetFree(
       SCIP_CALL( SCIPnodeselFree(&(*set)->nodesels[i], *set) );
    }
    BMSfreeMemoryArrayNull(&(*set)->nodesels);
+
+   /* free node pruners */
+   for( i = 0; i < (*set)->nnodeprus; ++i )
+   {
+      SCIP_CALL( SCIPnodepruFree(&(*set)->nodeprus[i], *set) );
+   }
+   BMSfreeMemoryArrayNull(&(*set)->nodeprus);
 
    /* free branching methods */
    for( i = 0; i < (*set)->nbranchrules; ++i )
@@ -3362,6 +3384,95 @@ SCIP_EVENTHDLR* SCIPsetFindEventhdlr(
    return NULL;
 }
 
+/** inserts node pruner in node pruner list */
+SCIP_RETCODE SCIPsetIncludeNodepru(
+   SCIP_SET*             set,                /**< global SCIP settings */
+   SCIP_NODEPRU*         nodepru             /**< node pruner */
+   )
+{
+   int i;
+   int nodeprustdprio;
+
+   assert(set != NULL);
+   assert(nodepru != NULL);
+   assert(!SCIPnodepruIsInitialized(nodepru));
+
+   if( set->nnodeprus >= set->nodeprussize )
+   {
+      set->nodeprussize = SCIPsetCalcMemGrowSize(set, set->nnodeprus+1);
+      SCIP_ALLOC( BMSreallocMemoryArray(&set->nodeprus, set->nodeprussize) );
+   }
+   assert(set->nnodeprus < set->nodeprussize);
+
+   nodeprustdprio = SCIPnodepruGetStdPriority(nodepru);
+
+   for( i = set->nnodeprus; i > 0 && nodeprustdprio > SCIPnodepruGetStdPriority(set->nodeprus[i-1]); --i )
+      set->nodeprus[i] = set->nodeprus[i-1];
+   
+   set->nodeprus[i] = nodepru;
+   set->nnodeprus++;
+
+   return SCIP_OKAY;
+}
+
+/** returns the node pruner of the given name, or NULL if not existing */
+SCIP_NODEPRU* SCIPsetFindNodepru(
+   SCIP_SET*             set,                /**< global SCIP settings */
+   const char*           name                /**< name of event handler */
+   )
+{
+   int i;
+
+   assert(set != NULL);
+   assert(name != NULL);
+
+   for( i = 0; i < set->nnodeprus; ++i )
+   {
+      if( strcmp(SCIPnodepruGetName(set->nodeprus[i]), name) == 0 )
+         return set->nodeprus[i];
+   }
+
+   return NULL;
+}
+
+/** returns node pruner with highest priority in the current mode */
+SCIP_NODEPRU* SCIPsetGetNodepru(
+   SCIP_SET*             set,                /**< global SCIP settings */
+   SCIP_STAT*            stat                /**< dynamic problem statistics */
+   )
+{
+   assert(set != NULL);
+   assert(stat != NULL);
+
+   /* check, if old node pruner is still valid */
+   if( set->nodepru == NULL && set->nnodeprus > 0 )
+   {
+      int i;
+
+      set->nodepru = set->nodeprus[0];
+
+      /* search highest priority node pruner */
+      if( stat->memsavemode )
+      {
+         for( i = 1; i < set->nnodeprus; ++i )
+         {
+            if( SCIPnodepruGetMemsavePriority(set->nodeprus[i]) > SCIPnodepruGetMemsavePriority(set->nodepru) )
+               set->nodepru = set->nodeprus[i];
+         }
+      }
+      else
+      {
+         for( i = 1; i < set->nnodeprus; ++i )
+         {
+            if( SCIPnodepruGetStdPriority(set->nodeprus[i]) > SCIPnodepruGetStdPriority(set->nodepru) )
+               set->nodepru = set->nodeprus[i];
+         }
+      }
+   }
+
+   return set->nodepru;
+}
+
 /** inserts node selector in node selector list */
 SCIP_RETCODE SCIPsetIncludeNodesel(
    SCIP_SET*             set,                /**< global SCIP settings */
@@ -3796,6 +3907,12 @@ SCIP_RETCODE SCIPsetInitPlugins(
       SCIP_CALL( SCIPnodeselInit(set->nodesels[i], set) );
    }
 
+   /* node pruners */
+   for( i = 0; i < set->nnodeprus; ++i )
+   {
+      SCIP_CALL( SCIPnodepruInit(set->nodeprus[i], set) );
+   }
+
    /* branching rules */
    for( i = 0; i < set->nbranchrules; ++i )
    {
@@ -3882,6 +3999,12 @@ SCIP_RETCODE SCIPsetExitPlugins(
    for( i = 0; i < set->nnodesels; ++i )
    {
       SCIP_CALL( SCIPnodeselExit(set->nodesels[i], set) );
+   }
+
+   /* node pruners */
+   for( i = 0; i < set->nnodeprus; ++i )
+   {
+      SCIP_CALL( SCIPnodepruExit(set->nodeprus[i], set) );
    }
 
    /* branching rules */
@@ -4029,6 +4152,12 @@ SCIP_RETCODE SCIPsetInitsolPlugins(
       SCIP_CALL( SCIPnodeselInitsol(set->nodesels[i], set) );
    }
 
+   /* node pruners */
+   for( i = 0; i < set->nnodeprus; ++i )
+   {
+      SCIP_CALL( SCIPnodepruInitsol(set->nodeprus[i], set) );
+   }
+
    /* branching rules */
    for( i = 0; i < set->nbranchrules; ++i )
    {
@@ -4112,6 +4241,12 @@ SCIP_RETCODE SCIPsetExitsolPlugins(
    for( i = 0; i < set->nnodesels; ++i )
    {
       SCIP_CALL( SCIPnodeselExitsol(set->nodesels[i], set) );
+   }
+
+   /* node pruners */
+   for( i = 0; i < set->nnodeprus; ++i )
+   {
+      SCIP_CALL( SCIPnodepruExitsol(set->nodeprus[i], set) );
    }
 
    /* branching rules */

@@ -441,6 +441,7 @@ void SCIPstatResetCurrentRun(
    stat->ndeactivatednodes = 0;
    stat->nbacktracks = 0;
    stat->ndelayedcutoffs = 0;
+   stat->nprunes = 0;
    stat->nreprops = 0;
    stat->nrepropboundchgs = 0;
    stat->nrepropcutoffs = 0;

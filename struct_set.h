@@ -39,6 +39,7 @@
 #include "scip/type_dialog.h"
 #include "scip/type_heur.h"
 #include "scip/type_nodesel.h"
+#include "scip/type_nodepru.h"
 #include "scip/type_presol.h"
 #include "scip/type_pricer.h"
 #include "scip/type_reader.h"
@@ -73,6 +74,8 @@ struct SCIP_Set
    SCIP_EVENTHDLR**      eventhdlrs;         /**< event handlers */
    SCIP_NODESEL**        nodesels;           /**< node selectors */
    SCIP_NODESEL*         nodesel;            /**< currently used node selector, or NULL if invalid */
+   SCIP_NODEPRU**        nodeprus;           /**< node pruners */
+   SCIP_NODEPRU*         nodepru;            /**< node pruner, or NULL if invalid */
    SCIP_BRANCHRULE**     branchrules;        /**< branching rules */
    SCIP_DISP**           disps;              /**< display columns */
    SCIP_DIALOG**         dialogs;            /**< dialogs */
@@ -102,6 +105,8 @@ struct SCIP_Set
    int                   eventhdlrssize;     /**< size of eventhdlrs array */
    int                   nnodesels;          /**< number of node selectors */
    int                   nodeselssize;       /**< size of nodesels array */
+   int                   nnodeprus;          /**< number of node pruners */
+   int                   nodeprussize;       /**< size of nodeprus array */
    int                   nbranchrules;       /**< number of branching rules */
    int                   branchrulessize;    /**< size of branchrules array */
    int                   ndisps;             /**< number of display columns */

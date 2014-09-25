@@ -22,6 +22,8 @@
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
 
+#define SCIP_DEBUG
+
 #include <assert.h>
 
 #include "scip/def.h"
@@ -45,6 +47,7 @@
 #include "scip/pub_message.h"
 #include "lpi/lpi.h"
 
+#define SCIP_DEBUG
 
 #define MAXDEPTH          65535  /**< maximal depth level for nodes; must correspond to node data structure */
 #define MAXREPROPMARK       511  /**< maximal subtree repropagation marker; must correspond to node data structure */
@@ -928,6 +931,8 @@ SCIP_RETCODE nodeCreate(
    (*node)->cutoff = FALSE;
    (*node)->reprop = FALSE;
    (*node)->repropsubtreemark = 0;
+   (*node)->optimal = FALSE;
+   (*node)->optchecked = FALSE;
 
    return SCIP_OKAY;
 }
@@ -2255,6 +2260,25 @@ void SCIPchildChgNodeselPrio(
    tree->childrenprio[pos] = priority;
 }
 
+/** set the node to checked */
+void SCIPnodeSetOptchecked(
+   SCIP_NODE*            node                /**< node to set optimal */
+   )
+{
+   assert(node != NULL);
+         
+   node->optchecked = TRUE;
+}
+
+/** set the node to be optimal */
+void SCIPnodeSetOptimal(
+   SCIP_NODE*            node                /**< node to set optimal */
+   )
+{
+   assert(node != NULL);
+         
+   node->optimal = TRUE;
+}
 
 /** sets the node's estimated bound to the new value */
 void SCIPnodeSetEstimate(
@@ -6663,6 +6687,8 @@ SCIP_Real SCIPtreeGetAvgLowerbound(
 #undef SCIPnodeGetDomchg
 #undef SCIPnodeGetParent
 #undef SCIPnodeIsActive
+#undef SCIPnodeIsOptimal
+#undef SCIPnodeIsOptchecked
 #undef SCIPnodeIsPropagatedAgain
 #undef SCIPtreeGetNLeaves
 #undef SCIPtreeGetNChildren
@@ -7011,6 +7037,26 @@ SCIP_NODE* SCIPnodesGetCommonAncestor(
    assert(SCIPnodeGetDepth(node1) >= 0);
 
    return node1;
+}
+
+/** returns whether node's optimality is checked */
+SCIP_Bool SCIPnodeIsOptchecked(
+   SCIP_NODE*            node                /**< node */
+   )
+{
+   assert(node != NULL);
+
+   return node->optchecked;
+}
+
+/** returns whether node optimal */
+SCIP_Bool SCIPnodeIsOptimal(
+   SCIP_NODE*            node                /**< node */
+   )
+{
+   assert(node != NULL);
+
+   return node->optimal;
 }
 
 /** returns whether node is in the path to the current node */

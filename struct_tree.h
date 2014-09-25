@@ -30,6 +30,7 @@
 #include "scip/type_tree.h"
 #include "scip/type_cons.h"
 #include "scip/type_nodesel.h"
+#include "scip/type_nodepru.h"
 #include "lpi/type_lpi.h"
 
 
@@ -141,6 +142,8 @@ struct SCIP_Node
    unsigned int          cutoff:1;           /**< should the node and all sub nodes be cut off from the tree? */
    unsigned int          reprop:1;           /**< should propagation be applied again, if the node is on the active path? */
    unsigned int          repropsubtreemark:9;/**< subtree repropagation marker for subtree repropagation */
+   unsigned int          optimal:1;          /**< is the node an optimal node? */
+   unsigned int          optchecked:1;       /**< has the node's optimality been checked? */
 };
 
 /** bound change information for pending bound changes */
@@ -164,6 +167,7 @@ struct SCIP_Tree
    SCIP_NODE**           path;               /**< array of nodes storing the active path from root to current node, which
                                               *   is usually the focus or a probing node; in case of a cut off, the path
                                               *   may already end earlier */
+   SCIP_NODEPRU*         nodepru;            /**< leaves of the tree */
    SCIP_NODE*            focusnode;          /**< focus node: the node that is stored together with its children and
                                               *   siblings in the tree data structure; the focus node is the currently
                                               *   processed node; it doesn't need to be active all the time, because it

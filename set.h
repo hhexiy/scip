@@ -40,6 +40,7 @@
 #include "scip/type_disp.h"
 #include "scip/type_heur.h"
 #include "scip/type_nodesel.h"
+#include "scip/type_nodepru.h"
 #include "scip/type_presol.h"
 #include "scip/type_pricer.h"
 #include "scip/type_reader.h"
@@ -76,6 +77,7 @@ SCIP_RETCODE SCIPsetCopyPlugins(
    SCIP_Bool             copyheuristics,     /**< should the heuristics be copied */
    SCIP_Bool             copyeventhdlrs,     /**< should the event handlers be copied */
    SCIP_Bool             copynodeselectors,  /**< should the node selectors be copied */
+   SCIP_Bool             copynodepruners,    /**< should the node pruners be copied */
    SCIP_Bool             copybranchrules,    /**< should the branchrules be copied */
    SCIP_Bool             copydisplays,       /**< should the display columns be copied */
    SCIP_Bool             copydialogs,        /**< should the dialogs be copied */
@@ -762,6 +764,27 @@ extern
 SCIP_EVENTHDLR* SCIPsetFindEventhdlr(
    SCIP_SET*             set,                /**< global SCIP settings */
    const char*           name                /**< name of event handler */
+   );
+
+/** inserts node pruner in node pruner list */
+extern
+SCIP_RETCODE SCIPsetIncludeNodepru(
+   SCIP_SET*             set,                /**< global SCIP settings */
+   SCIP_NODEPRU*         nodepru             /**< node pruner */
+   );
+
+/** returns the node pruner of the given name, or NULL if not existing */
+extern
+SCIP_NODEPRU* SCIPsetFindNodepru(
+   SCIP_SET*             set,                /**< global SCIP settings */
+   const char*           name                /**< name of event handler */
+   );
+
+/** returns node pruner with highest priority in the current mode */
+extern
+SCIP_NODEPRU* SCIPsetGetNodepru(
+   SCIP_SET*             set,                /**< global SCIP settings */
+   SCIP_STAT*            stat                /**< dynamic problem statistics */
    );
 
 /** inserts node selector in node selector list */

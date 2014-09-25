@@ -42,8 +42,6 @@
 #include "scip/struct_sol.h"
 #endif
 
-
-
 /** clears solution arrays of primal CIP solution */
 static
 SCIP_RETCODE solClearArrays(
@@ -293,6 +291,35 @@ SCIP_RETCODE SCIPsolCreate(
    solStamp(*sol, stat, tree, TRUE);
 
    SCIP_CALL( SCIPprimalSolCreated(primal, set, *sol) );
+
+   return SCIP_OKAY;
+}
+
+/** creates a single primal CIP solution in original problem space, initialized to the offset in the original problem */
+SCIP_RETCODE SCIPsolCreateOriginalSelf(
+   SCIP_SOL**            sol,                /**< pointer to primal CIP solution */
+   BMS_BLKMEM*           blkmem,             /**< block memory */
+   SCIP_SET*             set,                /**< global SCIP settings */
+   SCIP_STAT*            stat,               /**< problem statistics data */
+   SCIP_PROB*            origprob,           /**< original problem data */
+   SCIP_TREE*            tree,               /**< branch and bound tree */
+   SCIP_HEUR*            heur                /**< heuristic that found the solution (or NULL if it's from the tree) */
+   )
+{
+   assert(sol != NULL);
+   assert(blkmem != NULL);
+   assert(stat != NULL);
+
+   SCIP_ALLOC( BMSallocBlockMemory(blkmem, sol) );
+   SCIP_CALL( SCIPrealarrayCreate(&(*sol)->vals, blkmem) );
+   SCIP_CALL( SCIPboolarrayCreate(&(*sol)->valid, blkmem) );
+   (*sol)->heur = heur;
+   (*sol)->solorigin = SCIP_SOLORIGIN_ORIGINAL;
+   (*sol)->obj = origprob->objoffset;
+   (*sol)->primalindex = -1;
+   (*sol)->index = -1;
+   (*sol)->hasinfval = FALSE;
+   solStamp(*sol, stat, tree, TRUE);
 
    return SCIP_OKAY;
 }
@@ -703,6 +730,22 @@ SCIP_RETCODE SCIPsolFree(
    assert(*sol != NULL);
 
    SCIPprimalSolFreed(primal, *sol);
+
+   SCIP_CALL( SCIPrealarrayFree(&(*sol)->vals) );
+   SCIP_CALL( SCIPboolarrayFree(&(*sol)->valid) );
+   BMSfreeBlockMemory(blkmem, sol);
+
+   return SCIP_OKAY;
+}
+
+/** frees a single CIP solution not in primal */
+SCIP_RETCODE SCIPsolFreeSelf(
+   SCIP_SOL**            sol,                /**< pointer to primal CIP solution */
+   BMS_BLKMEM*           blkmem              /**< block memory */
+   )
+{
+   assert(sol != NULL);
+   assert(*sol != NULL);
 
    SCIP_CALL( SCIPrealarrayFree(&(*sol)->vals) );
    SCIP_CALL( SCIPboolarrayFree(&(*sol)->valid) );
@@ -2120,7 +2163,6 @@ SCIP_Bool SCIPsolIsOriginal(
    )
 {
    assert(sol != NULL);
-
    return (sol->solorigin == SCIP_SOLORIGIN_ORIGINAL);
 }
 

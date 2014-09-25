@@ -56,6 +56,7 @@
 #include "scip/type_heur.h"
 #include "scip/type_history.h"
 #include "scip/type_nodesel.h"
+#include "scip/type_nodepru.h"
 #include "scip/type_presol.h"
 #include "scip/type_pricer.h"
 #include "scip/type_reader.h"
@@ -81,6 +82,7 @@
 #include "scip/pub_message.h"
 #include "scip/pub_misc.h"
 #include "scip/pub_nodesel.h"
+#include "scip/pub_nodepru.h"
 #include "scip/pub_paramset.h"
 #include "scip/pub_presol.h"
 #include "scip/pub_pricer.h"
@@ -519,6 +521,7 @@ SCIP_RETCODE SCIPcopyPlugins(
    SCIP_Bool             copyheuristics,     /**< should the heuristics be copied */
    SCIP_Bool             copyeventhdlrs,     /**< should the event handlers be copied */
    SCIP_Bool             copynodeselectors,  /**< should the node selectors be copied */
+   SCIP_Bool             copynodepruners,    /**< should the node selectors be copied */
    SCIP_Bool             copybranchrules,    /**< should the branchrules be copied */
    SCIP_Bool             copydisplays,       /**< should the display columns be copied */
    SCIP_Bool             copydialogs,        /**< should the dialogs be copied */
@@ -3543,6 +3546,135 @@ SCIP_EVENTHDLR** SCIPgetEventhdlrs(
 /** returns the number of currently available event handlers */
 EXTERN
 int SCIPgetNEventhdlrs(
+   SCIP*                 scip                /**< SCIP data structure */
+   );
+
+/** creates a node pruner and includes it in SCIP.
+ *
+ *  @note method has all node pruner callbacks as arguments and is thus changed every time a new
+ *        callback is added in future releases; consider using SCIPincludeNodepruBasic() and setter functions
+ *        if you seek for a method which is less likely to change in future releases
+ */
+EXTERN
+SCIP_RETCODE SCIPincludeNodepru(
+   SCIP*                 scip,               /**< SCIP data structure */
+   const char*           name,               /**< name of node pruner */
+   const char*           desc,               /**< description of node pruner */
+   int                   stdpriority,        /**< priority of the node pruner in standard mode */
+   int                   memsavepriority,    /**< priority of the node pruner in memory saving mode */
+   SCIP_DECL_NODEPRUCOPY ((*nodeprucopy)),   /**< copy method of node pruner or NULL if you don't want to copy your plugin into sub-SCIPs */
+   SCIP_DECL_NODEPRUFREE ((*nodeprufree)),   /**< destructor of node pruner */
+   SCIP_DECL_NODEPRUINIT ((*nodepruinit)),   /**< initialize node pruner */
+   SCIP_DECL_NODEPRUEXIT ((*nodepruexit)),   /**< deinitialize node pruner */
+   SCIP_DECL_NODEPRUINITSOL((*nodepruinitsol)),/**< solving process initialization method of node pruner */
+   SCIP_DECL_NODEPRUEXITSOL((*nodepruexitsol)),/**< solving process deinitialization method of node pruner */
+   SCIP_DECL_NODEPRUPRUNE((*nodepruprune)),/**< node selection method */
+   SCIP_NODEPRUDATA*     nodeprudata         /**< node pruner data */
+   );
+
+/** Creates a node pruner and includes it in SCIP with its most fundamental callbacks. All non-fundamental
+ *  (or optional) callbacks as, e.g., init and exit callbacks, will be set to NULL.
+ *  Optional callbacks can be set via specific setter functions, see SCIPsetNodepruCopy(), SCIPsetNodepruFree(),
+ *  SCIPsetNodepruInit(), SCIPsetNodepruExit(), SCIPsetNodepruInitsol(), and SCIPsetNodepruExitsol()
+ */
+EXTERN
+SCIP_RETCODE SCIPincludeNodepruBasic(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_NODEPRU**        nodepru,            /**< reference to a node pruner, or NULL */
+   const char*           name,               /**< name of node pruner */
+   const char*           desc,               /**< description of node pruner */
+   int                   stdpriority,        /**< priority of the node pruner in standard mode */
+   int                   memsavepriority,    /**< priority of the node pruner in memory saving mode */
+   SCIP_DECL_NODEPRUPRUNE((*nodepruprune)),/**< node selection method */
+   SCIP_NODEPRUDATA*     nodeprudata         /**< node pruner data */
+   );
+
+/** sets copy method of node pruner */
+EXTERN
+SCIP_RETCODE SCIPsetNodepruCopy(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_NODEPRU*         nodepru,            /**< node pruner */
+   SCIP_DECL_NODEPRUCOPY ((*nodeprucopy))    /**< copy method of node pruner or NULL if you don't want to copy your plugin into sub-SCIPs */
+   );
+
+/** sets destructor method of node pruner */
+EXTERN
+SCIP_RETCODE SCIPsetNodepruFree(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_NODEPRU*         nodepru,            /**< node pruner */
+   SCIP_DECL_NODEPRUFREE ((*nodeprufree))    /**< destructor of node pruner */
+   );
+
+/** sets initialization method of node pruner */
+EXTERN
+SCIP_RETCODE SCIPsetNodepruInit(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_NODEPRU*         nodepru,            /**< node pruner */
+   SCIP_DECL_NODEPRUINIT ((*nodepruinit))    /**< initialize node pruner */
+   );
+
+/** sets deinitialization method of node pruner */
+EXTERN
+SCIP_RETCODE SCIPsetNodepruExit(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_NODEPRU*         nodepru,            /**< node pruner */
+   SCIP_DECL_NODEPRUEXIT ((*nodepruexit))    /**< deinitialize node pruner */
+   );
+
+/** sets solving process initialization method of node pruner */
+EXTERN
+SCIP_RETCODE SCIPsetNodepruInitsol(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_NODEPRU*         nodepru,            /**< node pruner */
+   SCIP_DECL_NODEPRUINITSOL ((*nodepruinitsol))/**< solving process initialization method of node pruner */
+   );
+
+/** sets solving process deinitialization method of node pruner */
+EXTERN
+SCIP_RETCODE SCIPsetNodepruExitsol(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_NODEPRU*         nodepru,            /**< node pruner */
+   SCIP_DECL_NODEPRUEXITSOL ((*nodepruexitsol))/**< solving process deinitialization method of node pruner */
+   );
+
+/** returns the node pruner of the given name, or NULL if not existing */
+EXTERN
+SCIP_NODEPRU* SCIPfindNodepru(
+   SCIP*                 scip,               /**< SCIP data structure */
+   const char*           name                /**< name of node pruner */
+   );
+
+/** returns the array of currently available node pruners */
+EXTERN
+SCIP_NODEPRU** SCIPgetNodeprus(
+   SCIP*                 scip                /**< SCIP data structure */
+   );
+
+/** returns the number of currently available node pruners */
+EXTERN
+int SCIPgetNNodeprus(
+   SCIP*                 scip                /**< SCIP data structure */
+   );
+
+/** sets the priority of a node pruner in standard mode */
+EXTERN
+SCIP_RETCODE SCIPsetNodepruStdPriority(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_NODEPRU*         nodepru,            /**< node pruner */
+   int                   priority            /**< new standard priority of the node pruner */
+   );
+
+/** sets the priority of a node pruner in memory saving mode */
+EXTERN
+SCIP_RETCODE SCIPsetNodepruMemsavePriority(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_NODEPRU*         nodepru,            /**< node pruner */
+   int                   priority            /**< new memory saving priority of the node pruner */
+   );
+
+/** returns the currently used node pruner */
+EXTERN
+SCIP_NODEPRU* SCIPgetNodepru(
    SCIP*                 scip                /**< SCIP data structure */
    );
 
@@ -14907,6 +15039,13 @@ SCIP_RETCODE SCIPcreateSol(
    SCIP_HEUR*            heur                /**< heuristic that found the solution (or NULL if it's from the tree) */
    );
 
+EXTERN
+SCIP_RETCODE SCIPcreateSolSelf(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_SOL**            sol,                /**< pointer to store the solution */
+   SCIP_HEUR*            heur                /**< heuristic that found the solution (or NULL if it's from the tree) */
+   );
+
 /** creates a primal solution, initialized to the current LP solution
  *
  *  @return \ref SCIP_OKAY is returned if everything worked. Otherwise a suitable error code is passed. See \ref
@@ -15103,6 +15242,17 @@ SCIP_RETCODE SCIPcreateFiniteSolCopy(
  */
 EXTERN
 SCIP_RETCODE SCIPfreeSol(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_SOL**            sol                 /**< pointer to the solution */
+   );
+
+/** frees a single CIP solution
+ *
+ *  @return \ref SCIP_OKAY is returned if everything worked. Otherwise a suitable error code is passed. See \ref
+ *          SCIP_Retcode "SCIP_RETCODE" for a complete list of error codes.
+ */
+EXTERN
+SCIP_RETCODE SCIPfreeSolSelf(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_SOL**            sol                 /**< pointer to the solution */
    );

@@ -23,6 +23,8 @@
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
 
+#define SCIP_DEBUG
+
 #include <assert.h>
 
 #include "scip/def.h"
@@ -50,6 +52,7 @@
 #include "scip/disp.h"
 #include "scip/heur.h"
 #include "scip/nodesel.h"
+#include "scip/nodepru.h"
 #include "scip/pricer.h"
 #include "scip/relax.h"
 #include "scip/sepa.h"
@@ -4178,6 +4181,7 @@ SCIP_RETCODE SCIPsolveCIP(
    )
 {
    SCIP_NODESEL* nodesel;
+   SCIP_NODEPRU* nodepru;
    SCIP_NODE* focusnode;
    SCIP_NODE* nextnode;
    SCIP_EVENT event;
@@ -4186,6 +4190,7 @@ SCIP_RETCODE SCIPsolveCIP(
    int nnodes;
    int depth;
    SCIP_Bool cutoff;
+   SCIP_Bool prune;
    SCIP_Bool unbounded;
    SCIP_Bool infeasible;
    SCIP_Bool foundsol;
@@ -4232,6 +4237,8 @@ SCIP_RETCODE SCIPsolveCIP(
 
    nextnode = NULL;
    unbounded = FALSE;
+   prune = FALSE;
+   nodepru = SCIPsetGetNodepru(set, stat);
 
    while( !SCIPsolveIsStopped(set, stat, TRUE) && !(*restart) )
    {
@@ -4280,6 +4287,19 @@ SCIP_RETCODE SCIPsolveCIP(
 
          /* stop node activation timer */
          SCIPclockStop(stat->nodeactivationtime, set);
+
+         if( nodepru != NULL && cutoff == FALSE && focusnode != NULL )
+         {
+            SCIPdebugMessage("check pruning node #%"SCIP_LONGINT_FORMAT" at depth %d\n", SCIPnodeGetNumber(focusnode), SCIPnodeGetDepth(focusnode));
+            SCIP_CALL( SCIPnodepruPrune(nodepru, set, focusnode, &prune) );
+            if( prune )
+            {
+               stat->nprunes++;
+               SCIPnodeCutoff(focusnode, set, stat, tree);
+               cutoff = TRUE;
+               SCIPdebugMessage("prune node #%"SCIP_LONGINT_FORMAT" at depth %d\n", SCIPnodeGetNumber(focusnode), SCIPnodeGetDepth(focusnode));
+            }
+         }
 
          assert(SCIPbufferGetNUsed(set->buffer) == 0);
       }

@@ -74,6 +74,7 @@
 #include "scip/disp.h"
 #include "scip/heur.h"
 #include "scip/nodesel.h"
+#include "scip/nodepru.h"
 #include "scip/reader.h"
 #include "scip/presol.h"
 #include "scip/pricer.h"
@@ -1414,6 +1415,7 @@ SCIP_RETCODE SCIPcopyPlugins(
    SCIP_Bool             copyheuristics,     /**< should the heuristics be copied */
    SCIP_Bool             copyeventhdlrs,     /**< should the event handlers be copied */
    SCIP_Bool             copynodeselectors,  /**< should the node selectors be copied */
+   SCIP_Bool             copynodepruners,    /**< should the node pruners be copied */
    SCIP_Bool             copybranchrules,    /**< should the branchrules be copied */
    SCIP_Bool             copydisplays,       /**< should the display columns be copied */
    SCIP_Bool             copydialogs,        /**< should the dialogs be copied */
@@ -1440,7 +1442,7 @@ SCIP_RETCODE SCIPcopyPlugins(
 
    SCIP_CALL( SCIPsetCopyPlugins(sourcescip->set, targetscip->set, 
          copyreaders, copypricers, copyconshdlrs, copyconflicthdlrs, copypresolvers, copyrelaxators, copyseparators, copypropagators,
-         copyheuristics, copyeventhdlrs, copynodeselectors, copybranchrules, copydisplays, copydialogs, copynlpis, valid) );
+         copyheuristics, copyeventhdlrs, copynodeselectors, copynodepruners, copybranchrules, copydisplays, copydialogs, copynlpis, valid) );
 
    return SCIP_OKAY;
 }
@@ -3120,7 +3122,7 @@ SCIP_RETCODE SCIPcopy(
    (*valid) = enablepricing || (SCIPgetNActivePricers(sourcescip) == 0);
 
    /* copy all plugins */
-   SCIP_CALL( SCIPcopyPlugins(sourcescip, targetscip, TRUE, enablepricing, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE,
+   SCIP_CALL( SCIPcopyPlugins(sourcescip, targetscip, TRUE, enablepricing, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE,
          TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, passmessagehdlr, valid) );
 
    SCIPdebugMessage("Copying plugins was%s valid.\n", *valid ? "" : " not");
@@ -3275,7 +3277,7 @@ SCIP_RETCODE SCIPcopyOrig(
    (*valid) = enablepricing || (SCIPgetNActivePricers(sourcescip) == 0);
 
    /* copy all plugins */
-   SCIP_CALL( SCIPcopyPlugins(sourcescip, targetscip, TRUE, enablepricing, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE,
+   SCIP_CALL( SCIPcopyPlugins(sourcescip, targetscip, TRUE, enablepricing, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE,
          TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, passmessagehdlr, valid) );
 
    SCIPdebugMessage("Copying plugins was%s valid.\n", *valid ? "" : " not");
@@ -7342,6 +7344,259 @@ int SCIPgetNEventhdlrs(
    return scip->set->neventhdlrs;
 }
 
+/** creates a node pruner and includes it in SCIP.
+ *
+ *  @note method has all node pruner callbacks as arguments and is thus changed every time a new
+ *        callback is added in future releases; consider using SCIPincludeNodepruBasic() and setter functions
+ *        if you seek for a method which is less likely to change in future releases
+ */
+SCIP_RETCODE SCIPincludeNodepru(
+   SCIP*                 scip,               /**< SCIP data structure */
+   const char*           name,               /**< name of node pruner */
+   const char*           desc,               /**< description of node pruner */
+   int                   stdpriority,        /**< priority of the node pruner in standard mode */
+   int                   memsavepriority,    /**< priority of the node pruner in memory saving mode */
+   SCIP_DECL_NODEPRUCOPY ((*nodeprucopy)),   /**< copy method of node pruner or NULL if you don't want to copy your plugin into sub-SCIPs */
+   SCIP_DECL_NODEPRUFREE ((*nodeprufree)),   /**< destructor of node pruner */
+   SCIP_DECL_NODEPRUINIT ((*nodepruinit)),   /**< initialize node pruner */
+   SCIP_DECL_NODEPRUEXIT ((*nodepruexit)),   /**< deinitialize node pruner */
+   SCIP_DECL_NODEPRUINITSOL((*nodepruinitsol)),/**< solving process initialization method of node pruner */
+   SCIP_DECL_NODEPRUEXITSOL((*nodepruexitsol)),/**< solving process deinitialization method of node pruner */
+   SCIP_DECL_NODEPRUPRUNE((*nodepruprune)),/**< node selection method */
+   SCIP_NODEPRUDATA*     nodeprudata         /**< node pruner data */
+   )
+{
+   SCIP_NODEPRU* nodepru;
+
+   SCIP_CALL( checkStage(scip, "SCIPincludeNodepru", TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE) );
+
+   /* check whether node pruner is already present */
+   if( SCIPfindNodepru(scip, name) != NULL )
+   {
+      SCIPerrorMessage("node pruner <%s> already included.\n", name);
+      return SCIP_INVALIDDATA;
+   }
+
+   SCIP_CALL( SCIPnodepruCreate(&nodepru, scip->set, scip->messagehdlr, scip->mem->setmem, name, desc, stdpriority, memsavepriority,
+         nodeprucopy,
+         nodeprufree, nodepruinit, nodepruexit, nodepruinitsol, nodepruexitsol,
+         nodepruprune, nodeprudata) );
+   SCIP_CALL( SCIPsetIncludeNodepru(scip->set, nodepru) );
+
+   return SCIP_OKAY;
+}
+
+/** Creates a node pruner and includes it in SCIP with its most fundamental callbacks. All non-fundamental
+ *  (or optional) callbacks as, e.g., init and exit callbacks, will be set to NULL.
+ *  Optional callbacks can be set via specific setter functions, see SCIPsetNodepruCopy(), SCIPsetNodepruFree(),
+ *  SCIPsetNodepruInit(), SCIPsetNodepruExit(), SCIPsetNodepruInitsol(), and SCIPsetNodepruExitsol()
+ */
+SCIP_RETCODE SCIPincludeNodepruBasic(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_NODEPRU**        nodepru,            /**< reference to a node pruner, or NULL */
+   const char*           name,               /**< name of node pruner */
+   const char*           desc,               /**< description of node pruner */
+   int                   stdpriority,        /**< priority of the node pruner in standard mode */
+   int                   memsavepriority,    /**< priority of the node pruner in memory saving mode */
+   SCIP_DECL_NODEPRUPRUNE((*nodepruprune)),/**< node selection method */
+   SCIP_NODEPRUDATA*     nodeprudata         /**< node pruner data */
+   )
+{
+   SCIP_NODEPRU* nodepruptr;
+
+   SCIP_CALL( checkStage(scip, "SCIPincludeNodepruBasic", TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE) );
+
+   /* check whether node pruner is already present */
+   if( SCIPfindNodepru(scip, name) != NULL )
+   {
+      SCIPerrorMessage("node pruner <%s> already included.\n", name);
+      return SCIP_INVALIDDATA;
+   }
+
+   SCIP_CALL( SCIPnodepruCreate(&nodepruptr, scip->set, scip->messagehdlr, scip->mem->setmem, name, desc, stdpriority, memsavepriority,
+         NULL,
+         NULL, NULL, NULL, NULL, NULL,
+         nodepruprune, nodeprudata) );
+   SCIP_CALL( SCIPsetIncludeNodepru(scip->set, nodepruptr) );
+
+   if( nodepru != NULL )
+      *nodepru = nodepruptr;
+
+   return SCIP_OKAY;
+}
+
+/** sets copy method of node pruner */
+SCIP_RETCODE SCIPsetNodepruCopy(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_NODEPRU*         nodepru,            /**< node pruner */
+   SCIP_DECL_NODEPRUCOPY ((*nodeprucopy))    /**< copy method of node pruner or NULL if you don't want to copy your plugin into sub-SCIPs */
+   )
+{
+   SCIP_CALL( checkStage(scip, "SCIPsetNodepruCopy", TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE) );
+
+   assert(nodepru != NULL);
+
+   SCIPnodepruSetCopy(nodepru, nodeprucopy);
+
+   return SCIP_OKAY;
+}
+
+/** sets destructor method of node pruner */
+SCIP_RETCODE SCIPsetNodepruFree(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_NODEPRU*         nodepru,            /**< node pruner */
+   SCIP_DECL_NODEPRUFREE ((*nodeprufree))    /**< destructor of node pruner */
+   )
+{
+   SCIP_CALL( checkStage(scip, "SCIPsetNodepruFree", TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE) );
+
+   assert(nodepru != NULL);
+
+   SCIPnodepruSetFree(nodepru, nodeprufree);
+
+   return SCIP_OKAY;
+}
+
+/** sets initialization method of node pruner */
+SCIP_RETCODE SCIPsetNodepruInit(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_NODEPRU*         nodepru,            /**< node pruner */
+   SCIP_DECL_NODEPRUINIT ((*nodepruinit))    /**< initialize node pruner */
+   )
+{
+   SCIP_CALL( checkStage(scip, "SCIPsetNodepruInit", TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE) );
+
+   assert(nodepru != NULL);
+
+   SCIPnodepruSetInit(nodepru, nodepruinit);
+
+   return SCIP_OKAY;
+}
+
+/** sets deinitialization method of node pruner */
+SCIP_RETCODE SCIPsetNodepruExit(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_NODEPRU*         nodepru,            /**< node pruner */
+   SCIP_DECL_NODEPRUEXIT ((*nodepruexit))    /**< deinitialize node pruner */
+   )
+{
+   SCIP_CALL( checkStage(scip, "SCIPsetNodepruExit", TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE) );
+
+   assert(nodepru != NULL);
+
+   SCIPnodepruSetExit(nodepru, nodepruexit);
+
+   return SCIP_OKAY;
+}
+
+/** sets solving process initialization method of node pruner */
+SCIP_RETCODE SCIPsetNodepruInitsol(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_NODEPRU*         nodepru,            /**< node pruner */
+   SCIP_DECL_NODEPRUINITSOL ((*nodepruinitsol))/**< solving process initialization method of node pruner */
+   )
+{
+   SCIP_CALL( checkStage(scip, "SCIPsetNodepruInitsol", TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE) );
+
+   assert(nodepru != NULL);
+
+   SCIPnodepruSetInitsol(nodepru, nodepruinitsol);
+
+   return SCIP_OKAY;
+}
+
+/** sets solving process deinitialization method of node pruner */
+SCIP_RETCODE SCIPsetNodepruExitsol(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_NODEPRU*         nodepru,            /**< node pruner */
+   SCIP_DECL_NODEPRUEXITSOL ((*nodepruexitsol))/**< solving process deinitialization method of node pruner */
+   )
+{
+   SCIP_CALL( checkStage(scip, "SCIPsetNodepruExitsol", TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE) );
+
+   assert(nodepru != NULL);
+
+   SCIPnodepruSetExitsol(nodepru, nodepruexitsol);
+
+   return SCIP_OKAY;
+}
+
+/** returns the node pruner of the given name, or NULL if not existing */
+SCIP_NODEPRU* SCIPfindNodepru(
+   SCIP*                 scip,               /**< SCIP data structure */
+   const char*           name                /**< name of node pruner */
+   )
+{
+   assert(scip != NULL);
+   assert(scip->set != NULL);
+   assert(name != NULL);
+
+   return SCIPsetFindNodepru(scip->set, name);
+}
+
+/** returns the array of currently available node pruners */
+SCIP_NODEPRU** SCIPgetNodeprus(
+   SCIP*                 scip                /**< SCIP data structure */
+   )
+{
+   assert(scip != NULL);
+   assert(scip->set != NULL);
+
+   return scip->set->nodeprus;
+}
+
+/** returns the number of currently available node pruners */
+int SCIPgetNNodeprus(
+   SCIP*                 scip                /**< SCIP data structure */
+   )
+{
+   assert(scip != NULL);
+   assert(scip->set != NULL);
+
+   return scip->set->nnodeprus;
+}
+
+/** sets the priority of a node pruner in standard mode */
+SCIP_RETCODE SCIPsetNodepruStdPriority(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_NODEPRU*         nodepru,            /**< node pruner */
+   int                   priority            /**< new standard priority of the node pruner */
+   )
+{
+   assert(scip != NULL);
+   assert(scip->set != NULL);
+
+   SCIPnodepruSetStdPriority(nodepru, scip->set, priority);
+
+   return SCIP_OKAY;
+}
+
+/** sets the priority of a node pruner in memory saving mode */
+SCIP_RETCODE SCIPsetNodepruMemsavePriority(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_NODEPRU*         nodepru,            /**< node pruner */
+   int                   priority            /**< new memory saving priority of the node pruner */
+   )
+{
+   assert(scip != NULL);
+   assert(scip->set != NULL);
+
+   SCIPnodepruSetMemsavePriority(nodepru, scip->set, priority);
+
+   return SCIP_OKAY;
+}
+
+/** returns the currently used node pruner */
+SCIP_NODEPRU* SCIPgetNodepru(
+   SCIP*                 scip                /**< SCIP data structure */
+   )
+{
+   assert(scip != NULL);
+   assert(scip->set != NULL);
+
+   return SCIPsetGetNodepru(scip->set, scip->stat);
+}
+
 /** creates a node selector and includes it in SCIP.
  *
  *  @note method has all node selector callbacks as arguments and is thus changed every time a new
@@ -10738,6 +10993,9 @@ SCIP_VAR* SCIPfindVar(
    case SCIP_STAGE_PRESOLVING:
    case SCIP_STAGE_EXITPRESOLVE:
    case SCIP_STAGE_PRESOLVED:
+   case SCIP_STAGE_INITSOLVE:
+      return SCIPprobFindVar(scip->origprob, name);
+
    case SCIP_STAGE_SOLVING:
    case SCIP_STAGE_SOLVED:
    case SCIP_STAGE_EXITSOLVE:
@@ -30754,6 +31012,21 @@ SCIP_RETCODE SCIPbranchPseudo(
  * primal solutions
  */
 
+/** creates a single solution (not save in primal solutions), initialized to zero
+ *
+ *  @return \ref SCIP_OKAY is returned if everything worked. Otherwise a suitable error code is passed. See \ref
+ *          SCIP_Retcode "SCIP_RETCODE" for a complete list of error codes.
+ */
+SCIP_RETCODE SCIPcreateSolSelf(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_SOL**            sol,                /**< pointer to store the solution */
+   SCIP_HEUR*            heur                /**< heuristic that found the solution (or NULL if it's from the tree) */
+   )
+{
+   SCIP_CALL( SCIPsolCreateOriginalSelf(sol, scip->mem->probmem, scip->set, scip->stat, scip->origprob, NULL, heur) );
+   return SCIP_OKAY;
+}
+
 /** creates a primal solution, initialized to zero
  *
  *  @return \ref SCIP_OKAY is returned if everything worked. Otherwise a suitable error code is passed. See \ref
@@ -31288,6 +31561,20 @@ SCIP_RETCODE SCIPcreateFiniteSolCopy(
  TERMINATE:
    SCIPfreeBufferArray(scip, &solvals);
 
+   return SCIP_OKAY;
+}
+
+/** frees a single CIP solution
+ *
+ *  @return \ref SCIP_OKAY is returned if everything worked. Otherwise a suitable error code is passed. See \ref
+ *          SCIP_Retcode "SCIP_RETCODE" for a complete list of error codes.
+ */
+SCIP_RETCODE SCIPfreeSolSelf(
+   SCIP*                 scip,               /**< SCIP data structure */
+   SCIP_SOL**            sol                 /**< pointer to the solution */
+   )
+{
+   SCIP_CALL( SCIPsolFreeSelf(sol, scip->mem->probmem) );
    return SCIP_OKAY;
 }
 
@@ -36569,6 +36856,7 @@ void printTreeStatistics(
    SCIPmessageFPrintInfo(scip->messagehdlr, file, "  backtracks       : %10"SCIP_LONGINT_FORMAT" (%.1f%%)\n", scip->stat->nbacktracks,
       scip->stat->nnodes > 0 ? 100.0 * (SCIP_Real)scip->stat->nbacktracks / (SCIP_Real)scip->stat->nnodes : 0.0);
    SCIPmessageFPrintInfo(scip->messagehdlr, file, "  delayed cutoffs  : %10"SCIP_LONGINT_FORMAT"\n", scip->stat->ndelayedcutoffs);
+   SCIPmessageFPrintInfo(scip->messagehdlr, file, "  prunes           : %10"SCIP_LONGINT_FORMAT"\n", scip->stat->nprunes);
    SCIPmessageFPrintInfo(scip->messagehdlr, file, "  repropagations   : %10"SCIP_LONGINT_FORMAT" (%"SCIP_LONGINT_FORMAT" domain reductions, %"SCIP_LONGINT_FORMAT" cutoffs)\n",
       scip->stat->nreprops, scip->stat->nrepropboundchgs, scip->stat->nrepropcutoffs);
    SCIPmessageFPrintInfo(scip->messagehdlr, file, "  avg switch length: %10.2f\n",

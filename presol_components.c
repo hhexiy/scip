@@ -310,7 +310,7 @@ SCIP_RETCODE copyAndSolveComponent(
 
       /* copy plugins, we omit pricers (because we do not run if there are active pricers) and dialogs */
       success = TRUE;
-      SCIP_CALL( SCIPcopyPlugins(scip, subscip, TRUE, FALSE, TRUE, TRUE, TRUE, TRUE, TRUE,
+      SCIP_CALL( SCIPcopyPlugins(scip, subscip, TRUE, FALSE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, 
             TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, TRUE, TRUE, &success) );
 
       /* abort if the plugins were not successfully copied */

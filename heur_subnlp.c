@@ -166,6 +166,7 @@ SCIP_RETCODE createSubSCIP(
          FALSE, /* heuristics */
          TRUE,  /* eventhandler */
          TRUE,  /* nodeselectors (SCIP gives an error if there is none) */
+         FALSE, /* nodepruners */
          FALSE,  /* branchrules */
          copydisplays, /* displays */
          FALSE, /* dialogs */
