@@ -18145,6 +18145,31 @@ SCIP_RETCODE SCIPprintStatistics(
    FILE*                 file                /**< output file (or NULL for standard output) */
    );
 
+/** outputs custom statistics
+ *
+ *  @return \ref SCIP_OKAY is returned if everything worked. Otherwise a suitable error code is passed. See \ref
+ *          SCIP_Retcode "SCIP_RETCODE" for a complete list of error codes.
+ *
+ *  @note If limits have been changed between the solution and the call to this function, the status is recomputed and
+ *        thus may to correspond to the original status.
+ *
+ *  @pre This method can be called if SCIP is in one of the following stages:
+ *       - \ref SCIP_STAGE_INIT
+ *       - \ref SCIP_STAGE_PROBLEM
+ *       - \ref SCIP_STAGE_TRANSFORMED
+ *       - \ref SCIP_STAGE_INITPRESOLVE
+ *       - \ref SCIP_STAGE_PRESOLVING
+ *       - \ref SCIP_STAGE_EXITPRESOLVE
+ *       - \ref SCIP_STAGE_PRESOLVED
+ *       - \ref SCIP_STAGE_SOLVING
+ *       - \ref SCIP_STAGE_SOLVED
+ */
+EXTERN
+SCIP_RETCODE SCIPprintMyStatistics(
+   SCIP*                 scip,               /**< SCIP data structure */
+   FILE*                 file                /**< output file (or NULL for standard output) */
+   );
+
 /** outputs history statistics about branchings on variables
  *
  *  @return \ref SCIP_OKAY is returned if everything worked. Otherwise a suitable error code is passed. See \ref
@@ -19687,6 +19712,7 @@ int SCIPgetPtrarrayMaxIdx(
    SCIP*                 scip,               /**< SCIP data structure */
    SCIP_PTRARRAY*        ptrarray            /**< dynamic ptr array */
    );
+
 
 #ifdef NDEBUG
 

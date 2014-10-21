@@ -22,8 +22,6 @@
 
 /*---+----1----+----2----+----3----+----4----+----5----+----6----+----7----+----8----+----9----+----0----+----1----+----2*/
 
-#define SCIP_DEBUG
-
 #include <assert.h>
 
 #include "scip/def.h"
@@ -933,6 +931,7 @@ SCIP_RETCODE nodeCreate(
    (*node)->repropsubtreemark = 0;
    (*node)->optimal = FALSE;
    (*node)->optchecked = FALSE;
+   (*node)->score = 0;
 
    return SCIP_OKAY;
 }
@@ -2258,26 +2257,6 @@ void SCIPchildChgNodeselPrio(
    assert( pos >= 0 );
 
    tree->childrenprio[pos] = priority;
-}
-
-/** set the node to checked */
-void SCIPnodeSetOptchecked(
-   SCIP_NODE*            node                /**< node to set optimal */
-   )
-{
-   assert(node != NULL);
-         
-   node->optchecked = TRUE;
-}
-
-/** set the node to be optimal */
-void SCIPnodeSetOptimal(
-   SCIP_NODE*            node                /**< node to set optimal */
-   )
-{
-   assert(node != NULL);
-         
-   node->optimal = TRUE;
 }
 
 /** sets the node's estimated bound to the new value */
@@ -4489,6 +4468,7 @@ SCIP_RETCODE SCIPtreeCreate(
    (*tree)->sbprobing = FALSE;
    (*tree)->probinglpwasprimfeas = TRUE;
    (*tree)->probinglpwasdualfeas = TRUE;
+   (*tree)->prunedlowerbound = SCIPsetInfinity(set);
 
    return SCIP_OKAY;
 }
@@ -6569,6 +6549,10 @@ SCIP_Real SCIPtreeGetLowerbound(
       lowerbound = MIN(lowerbound, tree->focusnode->lowerbound);
    }
 
+   /* compare with pruned lowerbound */
+   if( !SCIPsetIsInfinity(set, tree->prunedlowerbound) )
+      lowerbound = MIN(lowerbound, tree->prunedlowerbound);
+
    return lowerbound;
 }
 
@@ -6688,7 +6672,11 @@ SCIP_Real SCIPtreeGetAvgLowerbound(
 #undef SCIPnodeGetParent
 #undef SCIPnodeIsActive
 #undef SCIPnodeIsOptimal
+#undef SCIPnodeSetOptimal
 #undef SCIPnodeIsOptchecked
+#undef SCIPnodeSetOptchecked
+#undef SCIPnodeSetScore
+#undef SCIPnodeGetScore
 #undef SCIPnodeIsPropagatedAgain
 #undef SCIPtreeGetNLeaves
 #undef SCIPtreeGetNChildren
@@ -6748,6 +6736,67 @@ SCIP_Real SCIPnodeGetLowerbound(
    assert(node != NULL);
 
    return node->lowerbound;
+}
+
+/** returns whether node optimal */
+SCIP_Bool SCIPnodeIsOptimal(
+   SCIP_NODE*            node                /**< node */
+   )
+{
+   assert(node != NULL);
+
+   return node->optimal;
+}
+
+/** returns whether node's optimality is checked */
+SCIP_Bool SCIPnodeIsOptchecked(
+   SCIP_NODE*            node                /**< node */
+   )
+{
+   assert(node != NULL);
+
+   return node->optchecked;
+}
+
+/** set the node to checked */
+void SCIPnodeSetOptchecked(
+   SCIP_NODE*            node                /**< node to set optimal */
+   )
+{
+   assert(node != NULL);
+         
+   node->optchecked = TRUE;
+}
+
+/** set the node to be optimal */
+void SCIPnodeSetOptimal(
+   SCIP_NODE*            node                /**< node to set optimal */
+   )
+{
+   assert(node != NULL);
+         
+   node->optimal = TRUE;
+}
+
+/** sets the node's score to the new value */
+void SCIPnodeSetScore(
+   SCIP_NODE*            node,               /**< node to set optimal */
+   SCIP_Real             score
+   )
+{
+   assert(node != NULL);
+         
+   node->score = score;
+}
+
+/** gets the score of the node */
+SCIP_Real SCIPnodeGetScore(
+   SCIP_NODE*            node                /**< node */
+   )
+{
+   assert(node != NULL);
+
+   return node->score;
 }
 
 /** gets the estimated value of the best feasible solution in subtree of the node */
@@ -7039,26 +7088,6 @@ SCIP_NODE* SCIPnodesGetCommonAncestor(
    return node1;
 }
 
-/** returns whether node's optimality is checked */
-SCIP_Bool SCIPnodeIsOptchecked(
-   SCIP_NODE*            node                /**< node */
-   )
-{
-   assert(node != NULL);
-
-   return node->optchecked;
-}
-
-/** returns whether node optimal */
-SCIP_Bool SCIPnodeIsOptimal(
-   SCIP_NODE*            node                /**< node */
-   )
-{
-   assert(node != NULL);
-
-   return node->optimal;
-}
-
 /** returns whether node is in the path to the current node */
 SCIP_Bool SCIPnodeIsActive(
    SCIP_NODE*            node                /**< node */
@@ -7314,3 +7343,16 @@ SCIP_NODE* SCIPtreeGetRootNode(
    return tree->root;
 }
 
+/** set the lower bound of the pruned node on tree */
+EXTERN
+void SCIPtreeSetPrunedLowerbound(
+   SCIP_TREE*            tree,               /**< SCIP data structure */
+   SCIP_SET*             set,                
+   SCIP_Real             lowerbound
+   )
+{
+   assert(tree != NULL);
+
+   if( !SCIPsetIsInfinity(set, lowerbound) )
+      tree->prunedlowerbound = MIN(lowerbound, tree->prunedlowerbound);
+}

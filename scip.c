@@ -36856,7 +36856,6 @@ void printTreeStatistics(
    SCIPmessageFPrintInfo(scip->messagehdlr, file, "  backtracks       : %10"SCIP_LONGINT_FORMAT" (%.1f%%)\n", scip->stat->nbacktracks,
       scip->stat->nnodes > 0 ? 100.0 * (SCIP_Real)scip->stat->nbacktracks / (SCIP_Real)scip->stat->nnodes : 0.0);
    SCIPmessageFPrintInfo(scip->messagehdlr, file, "  delayed cutoffs  : %10"SCIP_LONGINT_FORMAT"\n", scip->stat->ndelayedcutoffs);
-   SCIPmessageFPrintInfo(scip->messagehdlr, file, "  prunes           : %10"SCIP_LONGINT_FORMAT"\n", scip->stat->nprunes);
    SCIPmessageFPrintInfo(scip->messagehdlr, file, "  repropagations   : %10"SCIP_LONGINT_FORMAT" (%"SCIP_LONGINT_FORMAT" domain reductions, %"SCIP_LONGINT_FORMAT" cutoffs)\n",
       scip->stat->nreprops, scip->stat->nrepropboundchgs, scip->stat->nrepropcutoffs);
    SCIPmessageFPrintInfo(scip->messagehdlr, file, "  avg switch length: %10.2f\n",
@@ -37217,6 +37216,66 @@ SCIP_RETCODE SCIPprintStatistics(
       SCIPerrorMessage("invalid SCIP stage <%d>\n", scip->set->stage);
       return SCIP_INVALIDCALL;
    }  /*lint !e788*/
+}
+
+/** outputs custom statistics
+ *
+ *  @return \ref SCIP_OKAY is returned if everything worked. Otherwise a suitable error code is passed. See \ref
+ *          SCIP_Retcode "SCIP_RETCODE" for a complete list of error codes.
+ *
+ *  @note If limits have been changed between the solution and the call to this function, the status is recomputed and
+ *        thus may to correspond to the original status.
+ *
+ *  @pre This method can be called if SCIP is in one of the following stages:
+ *       - \ref SCIP_STAGE_INIT
+ *       - \ref SCIP_STAGE_PROBLEM
+ *       - \ref SCIP_STAGE_TRANSFORMED
+ *       - \ref SCIP_STAGE_INITPRESOLVE
+ *       - \ref SCIP_STAGE_PRESOLVING
+ *       - \ref SCIP_STAGE_EXITPRESOLVE
+ *       - \ref SCIP_STAGE_PRESOLVED
+ *       - \ref SCIP_STAGE_SOLVING
+ *       - \ref SCIP_STAGE_SOLVED
+ */
+EXTERN
+SCIP_RETCODE SCIPprintMyStatistics(
+   SCIP*                 scip,               /**< SCIP data structure */
+   FILE*                 file                /**< output file (or NULL for standard output) */
+   )
+{
+   SCIP_CALL( checkStage(scip, "SCIPprintStatistics", TRUE, TRUE, FALSE, TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, TRUE, TRUE, FALSE, FALSE, FALSE) );
+
+   SCIPmessageFPrintInfo(scip->messagehdlr, file, "SCIP Status        : ");
+   SCIP_CALL( SCIPprintStage(scip, file) );
+   SCIPmessageFPrintInfo(scip->messagehdlr, file, "\n");
+
+   switch( scip->set->stage )
+   {
+   case SCIP_STAGE_INIT:
+   case SCIP_STAGE_PROBLEM:
+   case SCIP_STAGE_TRANSFORMED:
+   case SCIP_STAGE_INITPRESOLVE:
+   case SCIP_STAGE_PRESOLVING:
+   case SCIP_STAGE_EXITPRESOLVE:
+   case SCIP_STAGE_PRESOLVED:
+   case SCIP_STAGE_SOLVING:
+   case SCIP_STAGE_SOLVED:
+   {
+      printTimingStatistics(scip, file);
+      SCIPmessageFPrintInfo(scip->messagehdlr, file, "Original Problem   :\n");
+      SCIPprobPrintStatistics(scip->origprob, scip->messagehdlr, file);
+      SCIPmessageFPrintInfo(scip->messagehdlr, file, "Presolved Problem  :\n");
+      SCIPprobPrintStatistics(scip->transprob, scip->messagehdlr, file);
+      printTreeStatistics(scip, file);
+      printRootStatistics(scip, file);
+      printSolutionStatistics(scip, file);
+
+      return SCIP_OKAY;
+   }
+   default:
+      SCIPerrorMessage("invalid SCIP stage <%d>\n", scip->set->stage);
+      return SCIP_INVALIDCALL;
+   }
 }
 
 /** outputs history statistics about branchings on variables
@@ -39793,3 +39852,4 @@ int SCIPgetPtrarrayMaxIdx(
 
    return SCIPptrarrayGetMaxIdx(ptrarray);
 }
+

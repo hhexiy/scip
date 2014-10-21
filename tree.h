@@ -279,18 +279,6 @@ void SCIPchildChgNodeselPrio(
    SCIP_Real             priority            /**< node selection priority value */
    );
 
-/** sets the node to be checked */
-extern
-void SCIPnodeSetOptchecked(
-   SCIP_NODE*            node                /**< node to update lower bound for */
-   );
-
-/** sets the node to be optimal */
-extern
-void SCIPnodeSetOptimal(
-   SCIP_NODE*            node                /**< node to update lower bound for */
-   );
-
 /** sets the node's estimated bound to the new value */
 extern
 void SCIPnodeSetEstimate(

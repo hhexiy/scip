@@ -162,6 +162,18 @@ SCIP_Bool SCIPnodeIsActive(
    SCIP_NODE*            node                /**< node */
    );
 
+/** sets the node to be checked */
+EXTERN
+void SCIPnodeSetOptchecked(
+   SCIP_NODE*            node                /**< node to update lower bound for */
+   );
+
+/** sets the node to be optimal */
+EXTERN
+void SCIPnodeSetOptimal(
+   SCIP_NODE*            node                /**< node to update lower bound for */
+   );
+
 /** returns whether node is checked for optimality */
 EXTERN
 SCIP_Bool SCIPnodeIsOptchecked(
@@ -174,10 +186,31 @@ SCIP_Bool SCIPnodeIsOptimal(
    SCIP_NODE*            node                /**< node */
    );
 
+/** gets the score of the node */
+EXTERN
+SCIP_Real SCIPnodeGetScore(
+   SCIP_NODE*            node                /**< node */
+   );
+
+/** sets the node's score to the new value */
+EXTERN
+void SCIPnodeSetScore(
+   SCIP_NODE*            node,               /**< node to set optimal */
+   SCIP_Real             score
+   );
+
 /** returns whether the node is marked to be propagated again */
 EXTERN
 SCIP_Bool SCIPnodeIsPropagatedAgain(
    SCIP_NODE*            node                /**< node data */
+   );
+
+/** set the lower bound of the pruned node on tree */
+EXTERN
+void SCIPtreeSetPrunedLowerbound(
+   SCIP_TREE*            tree,               /**< SCIP data structure */
+   SCIP_SET*             set,               
+   SCIP_Real             lowerbound
    );
 
 
@@ -196,7 +229,11 @@ SCIP_Bool SCIPnodeIsPropagatedAgain(
 #define SCIPnodeGetParent(node)         ((node)->parent)
 #define SCIPnodeIsActive(node)          ((node)->active)
 #define SCIPnodeIsOptimal(node)         ((node)->optimal)
-#define SCIPnodeIsOptchecked(node)      ((node)->optimal)
+#define SCIPnodeIsOptchecked(node)      ((node)->optchecked)
+#define SCIPnodeSetOptimal(node)        ((node)->optimal = TRUE)
+#define SCIPnodeSetOptchecked(node)     ((node)->optchecked = TRUE)
+#define SCIPnodeGetScore(node)          ((node)->score)
+#define SCIPnodeSetScore(node, score)   ((node)->score = score)
 #define SCIPnodeIsPropagatedAgain(node) ((node)->reprop)
 
 #endif

@@ -144,6 +144,7 @@ struct SCIP_Node
    unsigned int          repropsubtreemark:9;/**< subtree repropagation marker for subtree repropagation */
    unsigned int          optimal:1;          /**< is the node an optimal node? */
    unsigned int          optchecked:1;       /**< has the node's optimality been checked? */
+   SCIP_Real             score;              /**< score (priority) assigned by a policy */
 };
 
 /** bound change information for pending bound changes */
@@ -215,6 +216,7 @@ struct SCIP_Tree
    SCIP_Bool             sbprobing;          /**< is the probing mode used for strong branching? */
    SCIP_Bool             probinglpwasprimfeas;/**< primal feasibility when probing started */
    SCIP_Bool             probinglpwasdualfeas;/**< dual feasibility when probing started */
+   SCIP_Real             prunedlowerbound;    /**< lower bound of pruned node */
 };
 
 #ifdef __cplusplus
